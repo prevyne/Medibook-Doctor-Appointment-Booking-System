@@ -1,10 +1,21 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
-import { Container, Box, Typography, TextField, Button, Link } from '@mui/material';
+import { 
+    Container, 
+    Box, 
+    Typography, 
+    TextField, 
+    Button, 
+    Link,
+    Alert,
+    CircularProgress
+} from '@mui/material';
+import API from '../api';
 
 function Register() {
     const [formData, setFormData] = useState({ name: '', email: '', password: '' });
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
     const navigate = useNavigate();
 
     const handleChange = (e) => {
@@ -13,13 +24,18 @@ function Register() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setLoading(true);
+        setError('');
+
         try {
-            await axios.post('http://localhost:5000/api/auth/register', formData);
+            // Use API.post instead of axios.post
+            await API.post('/api/auth/register', formData);
             alert('Registration successful! Please login.');
             navigate('/login');
-        } catch (error) {
-            console.error('Registration failed:', error.response?.data?.msg || 'An error occurred');
-            alert('Registration failed. Please try again.');
+        } catch (err) {
+            setError(err.response?.data?.msg || 'An error occurred. Please try again.');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -37,6 +53,9 @@ function Register() {
                     Sign Up for MediBook
                 </Typography>
                 <Box component="form" onSubmit={handleSubmit} sx={{ mt: 3 }}>
+
+                    {error && <Alert severity="error" sx={{ width: '100%', mb: 2 }}>{error}</Alert>}
+
                     <TextField
                         margin="normal"
                         required
@@ -47,6 +66,7 @@ function Register() {
                         autoComplete="name"
                         autoFocus
                         onChange={handleChange}
+                        disabled={loading}
                     />
                     <TextField
                         margin="normal"
@@ -57,6 +77,7 @@ function Register() {
                         name="email"
                         autoComplete="email"
                         onChange={handleChange}
+                        disabled={loading}
                     />
                     <TextField
                         margin="normal"
@@ -68,14 +89,16 @@ function Register() {
                         id="password"
                         autoComplete="new-password"
                         onChange={handleChange}
+                        disabled={loading}
                     />
                     <Button
                         type="submit"
                         fullWidth
                         variant="contained"
-                        sx={{ mt: 3, mb: 2 }}
+                        sx={{ mt: 3, mb: 2, height: 40 }}
+                        disabled={loading}
                     >
-                        Sign Up
+                        {loading ? <CircularProgress size={24} color="inherit" /> : 'Sign Up'}
                     </Button>
                     <Link component={RouterLink} to="/login" variant="body2" sx={{ display: 'block', textAlign: 'right' }}>
                         {"Already have an account? Sign In"}
