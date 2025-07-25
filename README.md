@@ -124,3 +124,6 @@ You can register a new account through the UI, or you can log in as the Admin an
 * `GET /api/appointments/doctor/schedule` - Get all appointments for a logged-in doctor.
 * `PUT /api/appointments/:id/approve` - Approve an appointment (doctor only).
 * `PUT /api/appointments/:id/cancel` - Cancel an appointment (patient only).
+
+### Live Site
+VERCEL: https://medibook-doctor-appointment-booking-eight.vercel.app/
