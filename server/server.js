@@ -6,6 +6,7 @@ require('dotenv').config();
 const app = express();
 const port = process.env.PORT || 5000;
 
+// Middleware
 app.use(cors());
 app.use(express.json());
 
@@ -16,17 +17,12 @@ mongoose.connect(process.env.MONGO_URI, {
 })
 .then(() => console.log("MongoDB connection established successfully"))
 .catch(err => console.error("MongoDB connection error:", err));
-// -------------------------
 
 // --- Define Routes ---
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/doctors', require('./routes/doctors'));
 app.use('/api/appointments', require('./routes/appointments'));
-
-// A simple test route
-app.get('/', (req, res) => {
-  res.send('MediBook API is running!');
-});
+app.use('/api/admin', require('./routes/admin'));
 
 app.listen(port, () => {
   console.log(`Server is running on port: ${port}`);

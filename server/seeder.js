@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
-const User = require('./models/User'); // We store doctors in the User collection
+const bcrypt = require('bcryptjs'); // Import bcryptjs
+const User = require('./models/User');
 const doctors = require('./data/doctors');
 
 dotenv.config();
@@ -18,16 +19,39 @@ const connectDB = async () => {
   }
 };
 
-connectDB();
-
 const importData = async () => {
   try {
-    await User.deleteMany({ role: 'doctor' }); // Clear old doctors
+    // Clear existing data
+    await User.deleteMany({});
 
-    // We need to add a dummy password for the seeder to work with our model
-    const doctorsWithPassword = doctors.map(d => ({...d, password: 'password123'}));
+    // --- Create a default Admin User ---
+    const adminEmail = 'admin@medibook.com';
+    let adminUser = await User.findOne({ email: adminEmail });
 
-    await User.insertMany(doctorsWithPassword);
+    if (!adminUser) {
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash('adminpassword', salt);
+
+        adminUser = new User({
+            name: 'Admin User',
+            email: adminEmail,
+            password: hashedPassword,
+            role: 'admin'
+        });
+        await adminUser.save();
+        console.log('Admin User Created');
+    }
+
+    // --- Import sample doctors ---
+    const doctorsWithHashedPasswords = await Promise.all(
+        doctors.map(async (doctor) => {
+            const salt = await bcrypt.genSalt(10);
+            const hashedPassword = await bcrypt.hash('password123', salt);
+            return { ...doctor, password: hashedPassword };
+        })
+    );
+    await User.insertMany(doctorsWithHashedPasswords);
+    console.log('Sample Doctors Imported!');
 
     console.log('Data Imported!');
     process.exit();
@@ -39,7 +63,7 @@ const importData = async () => {
 
 const destroyData = async () => {
     try {
-      await User.deleteMany({ role: 'doctor' });
+      await User.deleteMany({});
       console.log('Data Destroyed!');
       process.exit();
     } catch (err) {
@@ -48,8 +72,11 @@ const destroyData = async () => {
     }
   };
 
-if (process.argv[2] === '-d') {
-  destroyData();
-} else {
-  importData();
-}
+// Reconnect to DB before running
+connectDB().then(() => {
+    if (process.argv[2] === '-d') {
+      destroyData();
+    } else {
+      importData();
+    }
+});
