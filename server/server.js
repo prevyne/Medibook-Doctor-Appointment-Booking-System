@@ -6,8 +6,20 @@ require('dotenv').config();
 const app = express();
 const port = process.env.PORT || 5000;
 
-// Middleware
-app.use(cors());
+const allowedOrigins = ['http://localhost:5173', 'YOUR_VERCEL_FRONTEND_URL'];
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+};
+
+app.use(cors(corsOptions));
+
 app.use(express.json());
 
 // --- Connect to MongoDB ---

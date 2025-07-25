@@ -1,11 +1,22 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
-import { Container, Box, Typography, TextField, Button, Link } from '@mui/material';
+import { 
+    Container, 
+    Box, 
+    Typography, 
+    TextField, 
+    Button, 
+    Link,
+    Alert, // For displaying errors
+    CircularProgress // For the loading spinner
+} from '@mui/material';
+import API from '../api';
 
 function Login() {
     const [formData, setFormData] = useState({ email: '', password: '' });
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
     const navigate = useNavigate();
 
     const handleChange = (e) => {
@@ -14,15 +25,19 @@ function Login() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setLoading(true);
+        setError('');
+
         try {
-            const res = await axios.post('http://localhost:5000/api/auth/login', formData);
+            const res = await API.post('/api/auth/login', formData);
             localStorage.setItem('token', res.data.token);
             const decoded = jwtDecode(res.data.token);
             localStorage.setItem('userRole', decoded.user.role);
             navigate('/dashboard');
-        } catch (error) {
-            console.error('Login failed:', error);
-            alert('Login failed. Check your credentials.');
+        } catch (err) {
+            setError(err.response?.data?.msg || 'An unexpected error occurred. Please try again.');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -39,7 +54,11 @@ function Login() {
                 <Typography component="h1" variant="h5">
                     Sign in to MediBook
                 </Typography>
-                <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
+                <Box component="form" onSubmit={handleSubmit} sx={{ mt: 3 }}>
+                    
+                    {/* Display error alert if an error exists */}
+                    {error && <Alert severity="error" sx={{ width: '100%', mb: 2 }}>{error}</Alert>}
+
                     <TextField
                         margin="normal"
                         required
@@ -50,6 +69,7 @@ function Login() {
                         autoComplete="email"
                         autoFocus
                         onChange={handleChange}
+                        disabled={loading}
                     />
                     <TextField
                         margin="normal"
@@ -61,14 +81,16 @@ function Login() {
                         id="password"
                         autoComplete="current-password"
                         onChange={handleChange}
+                        disabled={loading}
                     />
                     <Button
                         type="submit"
                         fullWidth
                         variant="contained"
-                        sx={{ mt: 3, mb: 2 }}
+                        sx={{ mt: 3, mb: 2, height: 40 }}
+                        disabled={loading}
                     >
-                        Sign In
+                        {loading ? <CircularProgress size={24} color="inherit" /> : 'Sign In'}
                     </Button>
                     <Link component={RouterLink} to="/register" variant="body2">
                         {"Don't have an account? Sign Up"}
