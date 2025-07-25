@@ -1,16 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    Container, Box, Typography, Button, Grid, Card,
-    CardContent, AppBar, Toolbar, Paper, Table, TableBody,
-    TableCell, TableContainer, TableHead, TableRow, Select, MenuItem, IconButton
+    Container, Box, Typography, Button, AppBar, Toolbar, Paper, Table, 
+    TableBody, TableCell, TableContainer, TableHead, TableRow, Select, 
+    MenuItem, IconButton, CircularProgress, Alert
 } from '@mui/material';
 import PeopleIcon from '@mui/icons-material/People';
 import DeleteIcon from '@mui/icons-material/Delete';
+import API from '../api';
 
 function AdminDashboard() {
     const [users, setUsers] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+    const [updatingUserId, setUpdatingUserId] = useState(null);
     const navigate = useNavigate();
 
     const handleLogout = () => {
@@ -19,53 +22,55 @@ function AdminDashboard() {
         navigate('/login');
     };
 
-    const fetchUsers = async () => {
+    const fetchUsers = useCallback(async () => {
         try {
-            const token = localStorage.getItem('token');
-            const config = { headers: { 'Authorization': `Bearer ${token}` } };
-            const { data } = await axios.get('http://localhost:5000/api/admin/users', config);
+            const { data } = await API.get('/api/admin/users');
             setUsers(data);
-        } catch (error) {
-            console.error('Failed to fetch users', error);
+        } catch (err) {
+            setError('Failed to fetch users. Please try again later.');
+            console.error('Failed to fetch users', err);
+        } finally {
+            setLoading(false);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        fetchUsers();
+    }, [fetchUsers]);
 
     const handleRoleChange = async (userId, newRole) => {
         if (!window.confirm(`Are you sure you want to change this user's role to ${newRole}?`)) {
             return;
         }
+        setUpdatingUserId(userId);
         try {
-            const token = localStorage.getItem('token');
-            const config = { headers: { 'Authorization': `Bearer ${token}` } };
-            await axios.put(`http://localhost:5000/api/admin/users/${userId}/role`, { role: newRole }, config);
-            fetchUsers();
-        } catch (error) {
-            console.error('Failed to update role', error);
+            await API.put(`/api/admin/users/${userId}/role`, { role: newRole });
+            // Refresh users list by updating the state directly for a smoother UX
+            setUsers(users.map(user => user._id === userId ? { ...user, role: newRole } : user));
+        } catch (err) {
             alert('Failed to update role.');
+            console.error('Failed to update role', err);
+        } finally {
+            setUpdatingUserId(null);
         }
     };
-    
-    // --- ADD THIS NEW FUNCTION ---
+
     const handleDeleteUser = async (userId, userName) => {
         if (!window.confirm(`Are you sure you want to permanently delete ${userName}? This action cannot be undone.`)) {
             return;
         }
+        setUpdatingUserId(userId);
         try {
-            const token = localStorage.getItem('token');
-            const config = { headers: { 'Authorization': `Bearer ${token}` } };
-            await axios.delete(`http://localhost:5000/api/admin/users/${userId}`, config);
+            await API.delete(`/api/admin/users/${userId}`);
             alert('User deleted successfully.');
-            // Remove user from state to update UI instantly
             setUsers(users.filter(user => user._id !== userId));
-        } catch (error) {
-            console.error('Failed to delete user', error);
-            alert(error.response?.data?.msg || 'Failed to delete user.');
+        } catch (err) {
+            alert(err.response?.data?.msg || 'Failed to delete user.');
+            console.error('Failed to delete user', err);
+        } finally {
+            setUpdatingUserId(null);
         }
     };
-
-    useEffect(() => {
-        fetchUsers();
-    }, []);
 
     return (
         <Box sx={{ flexGrow: 1 }}>
@@ -83,49 +88,62 @@ function AdminDashboard() {
                     <Typography variant="h5" component="h2" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
                         <PeopleIcon sx={{ mr: 1, color: 'primary.main' }} /> User Management
                     </Typography>
-                    <TableContainer>
-                        <Table>
-                            <TableHead>
-                                <TableRow>
-                                    <TableCell>Name</TableCell>
-                                    <TableCell>Email</TableCell>
-                                    <TableCell>Current Role</TableCell>
-                                    <TableCell align="center">Change Role</TableCell>
-                                    <TableCell align="center">Actions</TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {users.map((user) => (
-                                    <TableRow key={user._id}>
-                                        <TableCell>{user.name}</TableCell>
-                                        <TableCell>{user.email}</TableCell>
-                                        <TableCell>{user.role}</TableCell>
-                                        <TableCell align="center">
-                                            {user.role !== 'admin' && (
-                                                <Select
-                                                    value={user.role}
-                                                    onChange={(e) => handleRoleChange(user._id, e.target.value)}
-                                                    size="small"
-                                                    sx={{ minWidth: 100 }}
-                                                >
-                                                    <MenuItem value="patient">Patient</MenuItem>
-                                                    <MenuItem value="doctor">Doctor</MenuItem>
-                                                </Select>
-                                            )}
-                                        </TableCell>
-                                        {/* --- ADD THIS TABLE CELL FOR THE DELETE BUTTON --- */}
-                                        <TableCell align="center">
-                                            {user.role !== 'admin' && (
-                                                <IconButton color="error" onClick={() => handleDeleteUser(user._id, user.name)}>
-                                                    <DeleteIcon />
-                                                </IconButton>
-                                            )}
-                                        </TableCell>
+                    
+                    {loading ? (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
+                            <CircularProgress />
+                        </Box>
+                    ) : error ? (
+                        <Alert severity="error">{error}</Alert>
+                    ) : (
+                        <TableContainer>
+                            <Table>
+                                <TableHead>
+                                    <TableRow>
+                                        <TableCell>Name</TableCell>
+                                        <TableCell>Email</TableCell>
+                                        <TableCell>Current Role</TableCell>
+                                        <TableCell align="center">Change Role</TableCell>
+                                        <TableCell align="center">Actions</TableCell>
                                     </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
+                                </TableHead>
+                                <TableBody>
+                                    {users.map((user) => (
+                                        <TableRow key={user._id}>
+                                            <TableCell>{user.name}</TableCell>
+                                            <TableCell>{user.email}</TableCell>
+                                            <TableCell>{user.role}</TableCell>
+                                            <TableCell align="center">
+                                                {user.role !== 'admin' && (
+                                                    <Select
+                                                        value={user.role}
+                                                        onChange={(e) => handleRoleChange(user._id, e.target.value)}
+                                                        size="small"
+                                                        sx={{ minWidth: 100 }}
+                                                        disabled={updatingUserId === user._id}
+                                                    >
+                                                        <MenuItem value="patient">Patient</MenuItem>
+                                                        <MenuItem value="doctor">Doctor</MenuItem>
+                                                    </Select>
+                                                )}
+                                            </TableCell>
+                                            <TableCell align="center">
+                                                {user.role !== 'admin' && (
+                                                    <IconButton 
+                                                        color="error" 
+                                                        onClick={() => handleDeleteUser(user._id, user.name)}
+                                                        disabled={updatingUserId === user._id}
+                                                    >
+                                                        {updatingUserId === user._id ? <CircularProgress size={20} /> : <DeleteIcon />}
+                                                    </IconButton>
+                                                )}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </TableContainer>
+                    )}
                 </Paper>
             </Container>
         </Box>
