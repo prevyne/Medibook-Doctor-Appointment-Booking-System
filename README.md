@@ -126,4 +126,4 @@ You can register a new account through the UI, or you can log in as the Admin an
 * `PUT /api/appointments/:id/cancel` - Cancel an appointment (patient only).
 
 ### Live Site
-VERCEL: https://medibook-doctor-appointment-booking-eight.vercel.app/
+VERCEL: https://medibook-doctor-appointment-booking.vercel.app/
